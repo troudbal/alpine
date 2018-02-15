@@ -53,7 +53,7 @@ char *
 rfc1738_scan(char *line, int *len)
 {
     char *colon, *start, *end;
-    int   n;
+    int   n, delim;
 
     /* process each : in the line */
     for(; (colon = strindex(line, ':')) != NULL; line = end){
@@ -143,6 +143,7 @@ rfc1738_scan(char *line, int *len)
 
 		if(i != j){
 		    *len = end - start;
+		    delim = start > line && *(start - 1) == '<';
 
 		    /*
 		     * Special case handling for comma.
@@ -152,8 +153,8 @@ rfc1738_scan(char *line, int *len)
 		     * In most cases any way, that's why we have the
 		     * exception.
 		     */
-		    if(*(end - 1) == ','
-		       || (*(end - 1) == '.' && (!*end  || *end == ' ')))
+		    if(delim == 0 && (*(end - 1) == ','
+		       || (*(end - 1) == '.' && (!*end  || *end == ' '))))
 		      (*len)--;
 
 		    if(*len - (colon - start) > 0)

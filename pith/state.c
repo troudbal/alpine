@@ -33,7 +33,7 @@ static char rcsid[] = "$Id: state.c 1074 2008-06-04 00:08:43Z hubert@u.washingto
 #include "../pith/remote.h"
 #include "../pith/list.h"
 #include "../pith/smime.h"
-
+#include "../pith/rules.h"
 
 /*
  * Globals referenced throughout pine...
@@ -74,6 +74,7 @@ new_pine_struct(void)
 
     p		       = (struct pine *)fs_get(sizeof (struct pine));
     memset((void *) p, 0, sizeof(struct pine));
+    p->thread_def_sort = SortDate;
     p->def_sort        = SortArrival;
     p->sort_types[0]   = SortSubject;
     p->sort_types[1]   = SortArrival;
@@ -119,6 +120,9 @@ free_pine_struct(struct pine **pps)
     if((*pps)->id != NULL)
       mail_free_idlist(&(*pps)->id);
 
+    if((*pps)->subject != NULL)
+      fs_give((void **)&(*pps)->subject);
+
     if((*pps)->hostname != NULL)
       fs_give((void **)&(*pps)->hostname);
 
@@ -133,6 +137,9 @@ free_pine_struct(struct pine **pps)
 
     if((*pps)->folders_dir != NULL)
       fs_give((void **)&(*pps)->folders_dir);
+
+    if((*pps)->paterror == 0)
+      regfree(&(*pps)->colorpat);
 
     if((*pps)->ui.homedir)
       fs_give((void **)&(*pps)->ui.homedir);
@@ -225,6 +232,8 @@ free_pine_struct(struct pine **pps)
     if((*pps)->kw_colors)
       free_spec_colors(&(*pps)->kw_colors);
 
+    free_allowed_qstr();
+
     if((*pps)->atmts){
 	int i;
 
@@ -239,6 +248,9 @@ free_pine_struct(struct pine **pps)
     if((*pps)->msgmap)
       msgno_give(&(*pps)->msgmap);
     
+    if((*pps)->rule_list)
+	free_parsed_rule_list(&(*pps)->rule_list);
+
     free_vars(*pps);
 
     fs_give((void **) pps);

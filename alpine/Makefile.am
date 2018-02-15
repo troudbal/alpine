@@ -51,3 +51,4 @@ CLEANFILES = date.c
 date.c:
 	echo "char datestamp[]="\"$(ALPINE_DATESTAMP)\"";" > date.c
 	echo "char hoststamp[]="\"$(ALPINE_HOSTSTAMP)\"";" >> date.c
+	cat ../patchlevel >> date.c

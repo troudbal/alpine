@@ -1017,7 +1017,7 @@ long mail_create (MAILSTREAM *stream,char *mailbox)
   MAILSTREAM *ts;
   char *s,*t,tmp[MAILTMPLEN];
   size_t i;
-  DRIVER *d;
+  DRIVER *d, *md;
 				/* never allow names with newlines */
   if ((s = strpbrk (mailbox,"\015\012")) != NULL) {
     MM_LOG ("Can't create mailbox with such a name",ERROR);
@@ -1041,6 +1041,8 @@ long mail_create (MAILSTREAM *stream,char *mailbox)
     return NIL;
   }
 
+  /* Hack, we should do this better, but it works */
+    for (md = maildrivers; md && strcmp (md->name, "md"); md = md->next);
 				/* see if special driver hack */
   if ((mailbox[0] == '#') && ((mailbox[1] == 'd') || (mailbox[1] == 'D')) &&
       ((mailbox[2] == 'r') || (mailbox[2] == 'R')) &&
@@ -1071,6 +1073,13 @@ long mail_create (MAILSTREAM *stream,char *mailbox)
 	   (((*mailbox == '{') || (*mailbox == '#')) &&
 	    (stream = mail_open (NIL,mailbox,OP_PROTOTYPE | OP_SILENT))))
     d = stream->dtb;
+  else if(mailbox[0] == '#'
+	&& (mailbox[1] == 'm' || mailbox[1] == 'M')
+	&& (mailbox[2] == 'd' || mailbox[2] == 'D'
+	    || mailbox[2] == 'c' || mailbox[2] == 'C')
+	&& mailbox[3] == '/'
+	&& mailbox[4] != '\0')
+     return (*md->create)(stream, mailbox);
   else if ((*mailbox != '{') && (ts = default_proto (NIL))) d = ts->dtb;
   else {			/* failed utterly */
     sprintf (tmp,"Can't create mailbox %.80s: indeterminate format",mailbox);

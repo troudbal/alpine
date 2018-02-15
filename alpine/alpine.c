@@ -482,6 +482,11 @@ main(int argc, char **argv)
 
     convert_args_to_utf8(pine_state, &args);
 
+    if (args.action == aaFolder && !args.data.folder &&
+		ps_global->send_immediately){
+	printf(_("No value for To: field specified\n"));
+	exit(-1);
+    }
     if(args.action == aaFolder){
 	pine_state->beginning_of_month = first_run_of_month();
 	pine_state->beginning_of_year = first_run_of_year();
@@ -490,6 +495,7 @@ main(int argc, char **argv)
     /* Set up optional for user-defined display filtering */
     pine_state->tools.display_filter	     = dfilter;
     pine_state->tools.display_filter_trigger = dfilter_trigger;
+    pine_state->tools.exec_rule		     = exec_function_rule;
 
 #ifdef _WINDOWS
     if(ps_global->install_flag){
@@ -580,6 +586,11 @@ main(int argc, char **argv)
 
     if(F_ON(F_MAILDROPS_PRESERVE_STATE, ps_global))
       mail_parameters(NULL, SET_SNARFPRESERVE, (void *) TRUE);
+
+#ifndef _WINDOWS
+    rv = F_ON(F_COURIER_FOLDER_LIST, ps_global) ? 1 : 0;
+    mail_parameters(NULL,SET_COURIERSTYLE, (void *) &rv);
+#endif
 
     rvl = 0L;
     if(pine_state->VAR_NNTPRANGE){
@@ -700,6 +711,7 @@ main(int argc, char **argv)
         
 
     /*--- output side ---*/
+    if (!ps_global->send_immediately){
     rv = config_screen(&(pine_state->ttyo));
 #ifndef _WINDOWS	/* always succeeds under _WINDOWS */
     if(rv){
@@ -740,12 +752,6 @@ main(int argc, char **argv)
     /* initialize titlebar in case we use it */
     set_titlebar("", NULL, NULL, NULL, NULL, 0, FolderName, 0, 0, NULL);
 
-    /*
-     * Prep storage object driver for PicoText 
-     */
-    so_register_external_driver(pine_pico_get, pine_pico_give, pine_pico_writec, pine_pico_readc, 
-				pine_pico_puts, pine_pico_seek, NULL, NULL);
-
 #ifdef	DEBUG
     if(ps_global->debug_imap > 4 || debug > 9){
 	q_status_message(SM_ORDER | SM_DING, 5, 9,
@@ -753,6 +759,19 @@ main(int argc, char **argv)
 	flush_status_messages(0);
     }
 #endif
+    }
+    else{
+     fake_config_screen(&(pine_state->ttyo));
+     init_folders(pine_state);		/* digest folder spec's */
+    }
+
+    /*
+     * Prep storage object driver for PicoText 
+     */
+    so_register_external_driver(pine_pico_get, pine_pico_give, 
+	(args.noutf8 == 0 ? pine_pico_writec : pine_pico_writec_noucs), 
+	(args.noutf8 == 0 ? pine_pico_readc : pine_pico_readc_noucs), 
+	(args.noutf8 == 0 ? pine_pico_puts : pine_pico_puts_noucs), pine_pico_seek, NULL, NULL);
 
     if(args.action == aaPrcCopy || args.action == aaAbookCopy){
 	int   exit_val = -1;
@@ -928,6 +947,12 @@ main(int argc, char **argv)
         int	    len, good_addr = 1;
 	int	    exit_val = 0;
 	BUILDER_ARG fcc;
+        ACTION_S  *role = NULL;
+
+        if (pine_state->in_init_seq && pine_state->send_immediately
+		&&  (char) *pine_state->initial_cmds++ == '#'
+		&&  ++pine_state->initial_cmds_offset)
+            role_select_screen(pine_state, &role, 1);
 
 	if(pine_state->in_init_seq){
 	    pine_state->in_init_seq = pine_state->save_in_init_seq = 0;
@@ -966,7 +991,7 @@ main(int argc, char **argv)
 	  memset(&fcc, 0, sizeof(fcc));
 
 	if(good_addr){
-	    compose_mail(addr, fcc.tptr, NULL,
+	    compose_mail(addr, fcc.tptr, role,
 			 args.data.mail.attachlist, stdin_getc);
 	}
 	else{
@@ -1000,6 +1025,7 @@ main(int argc, char **argv)
             
         pine_state->mail_stream    = NULL;
         pine_state->mangled_screen = 1;
+        pine_state->subject        = NULL;
 
 	if(args.action == aaURL){
 	    url_tool_t f;
@@ -1115,6 +1141,7 @@ main(int argc, char **argv)
 	    }
         }
 
+       if (!pine_state->send_immediately)
         fflush(stdout);
 
 #if !defined(_WINDOWS) && !defined(LEAVEOUTFIFO)
@@ -3008,10 +3035,15 @@ process_init_cmds(struct pine *ps, char **list)
     if(i > 0){
 	ps->initial_cmds = (int *)fs_get((i+1) * sizeof(int));
 	ps->free_initial_cmds = ps->initial_cmds;
+	ps->initial_cmds_backup = (int *)fs_get((i+1) * sizeof(int));
+	ps->free_initial_cmds_backup = ps->initial_cmds_backup;
 	for(j = 0; j < i; j++)
-	  ps->initial_cmds[j] = i_cmds[j];
-
-	ps->initial_cmds[i] = 0;
+	  ps->initial_cmds[j] = ps->initial_cmds_backup[j] = i_cmds[j];
+#define ctrl_x 24
+      if (i > 1)
+	ps->send_immediately = i_cmds[i - 2] == ctrl_x
+			&& ((i_cmds[i - 1] == 'y') || (i_cmds[i-1] == 'Y'));
+	ps->initial_cmds[i] = ps->initial_cmds_backup[i] = 0;
 	ps->in_init_seq = ps->save_in_init_seq = 1;
     }
 }
@@ -3167,6 +3199,9 @@ goodnight_gracey(struct pine *pine_state, int exit_val)
     extern KBESC_T *kbesc;
 
     dprint((2, "goodnight_gracey:\n"));    
+    strncpy(pine_state->cur_folder, pine_state->inbox_name, 
+					sizeof(pine_state->cur_folder));
+    pine_state->cur_folder[sizeof(pine_state->cur_folder) - 1] = '\0';
 
     /* We want to do this here before we close up the streams */
     trim_remote_adrbks();

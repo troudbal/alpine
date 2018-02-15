@@ -366,6 +366,10 @@
 #define SET_SCANCONTENTS (long) 573
 #define GET_MHALLOWINBOX (long) 574
 #define SET_MHALLOWINBOX (long) 575
+#define GET_COURIERSTYLE (long) 576
+#define SET_COURIERSTYLE (long) 577
+#define SET_MDINBOXPATH  (long) 578
+#define GET_MDINBOXPATH  (long) 579
 
 /* Driver flags */
 

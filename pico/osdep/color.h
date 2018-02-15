@@ -33,6 +33,7 @@ void	 pico_endcolor(void);
 void	 pico_toggle_color(int);
 void	 pico_set_nfg_color(void);
 void	 pico_set_nbg_color(void);
+char	 **default_qstr(void *, int);
 
 
 #endif /* PICO_OSDEP_COLOR_INCLUDED */
