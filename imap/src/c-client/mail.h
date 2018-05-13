@@ -1887,7 +1887,7 @@ char *sm_read (char *sbname,void **sdb);
 void ssl_onceonlyinit (void);
 char *ssl_start_tls (char *s);
 void ssl_server_init (char *server);
-
+void free_c_client_module_globals(void);
 
 /* Server I/O functions */
 
