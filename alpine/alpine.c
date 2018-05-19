@@ -3586,6 +3586,7 @@ free_alpine_module_globals(void)
     free_passfile_cache();
 #endif
     free_message_queue();
+    free_mailcmd_globals();
 }
 
 #ifdef	WIN32
