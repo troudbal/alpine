@@ -9424,7 +9424,8 @@ choose_list_of_charsets(void)
 
 /* Report quota summary resources in an IMAP server */
 
-void cmd_quota (struct pine *state)
+void
+cmd_quota (struct pine *state)
 {
    QUOTALIST *imapquota;
    NETMBX mb;
