@@ -1210,7 +1210,7 @@ process_config_input(UCS *ch)
 	    }
 	}
 	ps_global->initial_cmds_offset++;
-	if(!*ps_global->initial_cmds && ps_global->free_initial_cmds){
+	if(ps_global->initial_cmds && !*ps_global->initial_cmds && ps_global->free_initial_cmds){
 	    fs_give((void **) &ps_global->free_initial_cmds);
 	    ps_global->initial_cmds = NULL;
 	    firsttime = (char) 1;
