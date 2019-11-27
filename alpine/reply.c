@@ -62,7 +62,8 @@ The evolution continues...
 #include "../pith/tempfile.h"
 #include "../pith/busy.h"
 #include "../pith/ablookup.h"
-
+#include "../pith/copyaddr.h"
+#include "../pith/rules.h"
 
 /*
  * Internal Prototypes
@@ -109,11 +110,12 @@ reply(struct pine *pine_state, ACTION_S *role_arg)
     long        msgno, j, totalm, rflags, *seq = NULL;
     int         i, include_text = 0, times = -1, warned = 0, rv = 0,
 		flags = RSF_QUERY_REPLY_ALL, reply_raw_body = 0;
-    int         rolemsg = 0, copytomsg = 0;
+    int         rolemsg = 0, copytomsg = 0, do_role_early = 0;
     gf_io_t     pc;
     PAT_STATE   dummy;
     REDRAFT_POS_S *redraft_pos = NULL;
     ACTION_S   *role = NULL, *nrole;
+    RULE_RESULT *rule;
 #if	defined(DOS) && !defined(_WINDOWS)
     char *reserve;
 #endif
@@ -138,6 +140,69 @@ reply(struct pine *pine_state, ACTION_S *role_arg)
     if(ps_global->full_header == 2
        && F_ON(F_ENABLE_FULL_HDR_AND_TEXT, ps_global))
       reply_raw_body = 1;
+
+    /* Setup possible role */
+    if(role_arg)
+      role = copy_action(role_arg);
+
+    if(!role && F_ON(F_ENABLE_EDIT_REPLY_INDENT, pine_state)){
+	for(msgno = mn_first_cur(pine_state->msgmap);
+	    msgno > 0L;  msgno = mn_next_cur(pine_state->msgmap)){
+
+	    env = pine_mail_fetchstructure(pine_state->mail_stream,
+					   mn_m2raw(pine_state->msgmap, msgno),
+					   NULL);
+	    if(!env) {
+		q_status_message1(SM_ORDER,3,4,
+			    _("Error fetching message %s. Can't reply to it."),
+				long2string(msgno));
+		goto done_early;
+	    }
+
+	    if(rule = get_result_rule(V_REPLY_INDENT_RULES, FOR_COMPOSE , env)){
+	        RULELIST *list = get_rulelist_from_code(V_REPLY_INDENT_RULES,
+                                                ps_global->rule_list);
+	        RULE_S *prule = get_rule(list, rule->number);
+		if(condition_contains_token(prule->condition, ROLE_TOKEN))
+		  do_role_early++;
+		if(rule->result)
+		  fs_give((void **)&rule->result);
+		fs_give((void **)&rule);
+	    }
+	}
+    }
+
+    if(do_role_early){
+	rflags = ROLE_REPLY;
+	if(nonempty_patterns(rflags, &dummy)){
+	    /* setup default role */
+	    nrole = NULL;
+	    j = mn_first_cur(pine_state->msgmap);
+	    do {
+		role = nrole;
+		nrole = set_role_from_msg(pine_state, rflags,
+					  mn_m2raw(pine_state->msgmap, j),
+					  NULL);
+	    } while(nrole && (!role || nrole == role)
+		    && (j=mn_next_cur(pine_state->msgmap)) > 0L);
+
+	    if(!role || nrole == role)
+	      role = nrole;
+	    else
+	      role = NULL;
+
+	    if(confirm_role(rflags, &role))
+	      role = combine_inherited_role(role);
+	    else{				/* cancel reply */
+		role = NULL;
+		cmd_cancelled("Reply");
+		goto done_early;
+	    }
+	}
+    }
+
+    if (role)
+	ps_global->role = cpystr(role->nick); /* remember the role */
 
     /*
      * We may have to loop through first to figure out what default
@@ -287,8 +352,18 @@ reply(struct pine *pine_state, ACTION_S *role_arg)
 		outgoing->subject = cpystr("Re: several messages");
 	    }
 	}
-	else
-	  outgoing->subject = reply_subject(env->subject, NULL, 0);
+	else{
+	   RULE_RESULT *rule;
+	   rule = get_result_rule(V_RESUB_RULES,FOR_RESUB|FOR_TRIM , env);
+	   if (rule){
+	     outgoing->subject = reply_subject(rule->result, NULL, 0);
+	     if (rule->result)
+	        fs_give((void **)&rule->result);
+	     fs_give((void **)&rule);
+	   }
+	   else
+	       outgoing->subject = reply_subject(env->subject, NULL, 0);
+	}
     }
 
     /* fill reply header */
@@ -307,15 +382,15 @@ reply(struct pine *pine_state, ACTION_S *role_arg)
     if(sp_expunge_count(pine_state->mail_stream))	/* cur msg expunged */
       goto done_early;
 
-    /* Setup possible role */
-     if (ps_global->reply.role_chosen)
-	role = ps_global->reply.role_chosen;
-     else if(role_arg)
-	role = copy_action(role_arg);
+    if (ps_global->reply.role_chosen){
+      if(role_arg)
+        free_action(&role);
+      role = ps_global->reply.role_chosen;
+    }
 
-    if(!role){
-	rflags = ROLE_REPLY;
-	if(!ps_global->reply.role_chosen && nonempty_patterns(rflags, &dummy)){
+    if(!role && !do_role_early){
+       rflags = ROLE_REPLY;
+       if(!ps_global->reply.role_chosen && nonempty_patterns(rflags, &dummy)){
 	    /* setup default role */
 	    nrole = NULL;
 	    j = mn_first_cur(pine_state->msgmap);
@@ -724,6 +799,9 @@ reply(struct pine *pine_state, ACTION_S *role_arg)
     if(prefix)
       fs_give((void **)&prefix);
 
+    if (ps_global->role)
+	fs_give((void **)&ps_global->role);
+
     if(fcc)
       fs_give((void **) &fcc);
 
@@ -879,7 +957,8 @@ confirm_role(long int rflags, ACTION_S **role)
 
 	prompt[sizeof(prompt)-1] = '\0';
 
-	cmd = radio_buttons(prompt, -FOOTER_ROWS(ps_global), ekey,
+	cmd = ps_global->send_immediately ? 'n' :
+		radio_buttons(prompt, -FOOTER_ROWS(ps_global), ekey,
 			    'y', 'x', help, RB_NORM);
 
 	switch(cmd){
@@ -1598,9 +1677,14 @@ forward(struct pine *ps, ACTION_S *role_arg)
 	}
     }
 
-    if(role)
+    if (ps_global->role)
+      fs_give((void **)&ps_global->role);
+
+    if(role){
       q_status_message1(SM_ORDER, 3, 4,
 			_("Forwarding using role \"%s\""), role->nick);
+      ps_global->role = cpystr(role->nick);
+    }
 
     if(role && role->template){
 	char *filtered;
@@ -1832,6 +1916,7 @@ forward(struct pine *ps, ACTION_S *role_arg)
 #if	defined(DOS) && !defined(_WINDOWS)
     free((void *)reserve);
 #endif
+    outgoing->sparep = env && env->from ? copyaddr(env->from) : NULL;
     pine_send(outgoing, &body, "FORWARD MESSAGE",
 	      role, NULL, &reply, redraft_pos,
 	      NULL, NULL, 0);
@@ -2598,6 +2683,8 @@ display_message_for_pico(int x)
 {
     int rv;
     
+    if(ps_global->send_immediately)
+      return 0;
     clear_cursor_pos();			/* can't know where cursor is */
     mark_status_dirty();		/* don't count on cached text */
     fix_windsize(ps_global);

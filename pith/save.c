@@ -954,7 +954,7 @@ save(struct pine *state, MAILSTREAM *stream, CONTEXT_S *context, char *folder,
 	      *date = '\0';
 
 	    rv = save_fetch_append(stream, mn_m2raw(msgmap, i),
-				   NULL, save_stream, save_folder, context,
+				   NULL, save_stream, folder, context,
 				   mc ? mc->rfc822_size : 0L, flags, date, so);
 
 	    if(flags)

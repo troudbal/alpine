@@ -2169,6 +2169,11 @@ display_attachment(long int msgno, ATTACH_S *a, int flags)
         return(1);
     }
 
+    /* ok, we have a filename. Now check if there is a template, and if
+     * so, rename the file accordingly
+     */
+    filename = mc_template(filename, a->body, a->can_display & MCD_EXT_PROMPT);
+
     if((store = so_get(FileStar, filename, WRITE_ACCESS|OWNER_ONLY)) == NULL){
         q_status_message2(SM_ORDER | SM_DING, 3, 5,
                           _("Error \"%s\", Can't write file %s"),
