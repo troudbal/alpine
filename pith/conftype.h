@@ -812,7 +812,7 @@ typedef struct smime_stuff {
 #endif /* SMIME */
 
 
-/* exported protoypes */
+/* exported prototypes */
 
 #define DF_THREAD_SORT_KEY  "thread"
 

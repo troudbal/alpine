@@ -51,7 +51,7 @@ static  unsigned long rule_curpos = 0L;
 #define	MCMD_ISAGG(O)	((O) & (MCMD_AGG | MCMD_AGG_2))
 
 
-/* exported protoypes */
+/* exported prototypes */
 int	   any_messages(MSGNO_S *, char *, char *);
 void	   bogus_utf8_command(char *, char *);
 int	   can_set_flag(struct pine *, char *, int);

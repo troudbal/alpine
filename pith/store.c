@@ -361,7 +361,7 @@ so_file_open(STORE_S *so)
 
 /*
  * put a character into the specified storage object,
- * expanding if neccessary
+ * expanding if necessary
  *
  * return 1 on success and 0 on failure
  */
@@ -667,7 +667,7 @@ so_file_puts_locale(STORE_S *so, char *s)
 #ifdef SMIME
 /*
  * put a character into the specified storage object,
- * expanding if neccessary
+ * expanding if necessary
  *
  * return 1 on success and 0 on failure
  */

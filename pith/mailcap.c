@@ -304,7 +304,7 @@ mc_parse_line(char **line, char **tokens)
 
 
 /*
- * Retuns 1 if line is a comment, 0 otherwise
+ * Returns 1 if line is a comment, 0 otherwise
  */
 int
 mc_comment(char **line)
@@ -329,7 +329,7 @@ mc_comment(char **line)
 
 
 /*
- * Retuns 0 if EOL, 1 otherwise
+ * Returns 0 if EOL, 1 otherwise
  */
 int
 mc_token(char **token, char **line)
@@ -541,7 +541,7 @@ mc_sane_command(char *command)
 #ifdef	LATER
 	/*
 	 * NOTE: Maybe we'll do this later.  The problem is when the
-	 * mailcap's been misconfigured.  We then end up supressing
+	 * mailcap's been misconfigured.  We then end up suppressing
 	 * valuable output when the user actually tries to launch the
 	 * spec'd viewer.
 	 */
@@ -557,7 +557,7 @@ mc_sane_command(char *command)
 
 
 /*
- * Returns the mailcap entry for type/subtype from the successfull
+ * Returns the mailcap entry for type/subtype from the successful
  * mailcap entry, or NULL if none.  Command string still contains % stuff.
  */
 MailcapEntry *

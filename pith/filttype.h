@@ -72,7 +72,7 @@ typedef struct cbuf_s {
 } CBUF_S;
 
 
-/* exported protoypes */
+/* exported prototypes */
 
 
 #endif /* PITH_FILTTYPE_INCLUDED */
