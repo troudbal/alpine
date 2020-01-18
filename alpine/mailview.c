@@ -177,7 +177,6 @@ int	    url_launch_too_long(int);
 char	   *url_external_handler(HANDLE_S *, int);
 void	    url_mailto_addr(ADDRESS **, char *);
 int	    ical_send_reply(char *);
-int	    url_local_phone_home(char *);
 int	    url_local_imap(char *);
 int	    url_local_nntp(char *);
 int	    url_local_news(char *);
@@ -1701,7 +1700,6 @@ url_local_handler(char *s)
 #endif
 	{"news:", 5, url_local_news},
 	{"x-alpine-ical:", 14, ical_send_reply},
-	{"x-alpine-phone-home:", 20, url_local_phone_home},
 	{"x-alpine-gripe:", 15, gripe_gripe_to},
 	{"x-alpine-help:", 14, url_local_helper},
 	{"x-pine-help:", 12, url_local_helper},
@@ -2265,14 +2263,6 @@ ical_send_reply(char *url)
 {
 //   ical_compose_reply(url + strlen("x-alpine-ical:"));
    return 2;
-}
-
-
-int
-url_local_phone_home(char *URL)
-{
-   phone_home(URL + strlen("x-alpine-phone-home:"));
-   return(2);
 }
 
 
