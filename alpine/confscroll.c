@@ -5863,6 +5863,7 @@ fix_side_effects(struct pine *ps, struct variable *var, int revert)
 #endif
 #if !defined(_WINDOWS) || (defined(ENABLE_WINDOWS_LIBRESSL) && defined(W32BITSBUILD))
 			var == &ps->vars[V_SSLCAPATH] ||
+			var == &ps->vars[V_SSLCAFILE] ||
 #endif
 		        var == &ps->vars[V_RSHPATH] ||
 		        var == &ps->vars[V_RSHCMD] ||
